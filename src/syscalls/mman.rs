@@ -26,6 +26,14 @@ bitflags! {
 	}
 }
 
+/// Prints a debug message
+#[hermit_macro::system]
+#[unsafe(no_mangle)]
+pub extern "C" fn sys_my_print_dbg() -> i32 {
+	warn!("__sys_my_print_dbg called!");
+	0
+}
+
 /// Creates a new virtual memory mapping of the `size` specified with
 /// protection bits specified in `prot_flags`.
 #[hermit_macro::system(errno)]
