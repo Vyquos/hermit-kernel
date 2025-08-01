@@ -29,8 +29,8 @@ bitflags! {
 /// Prints a debug message
 #[hermit_macro::system]
 #[unsafe(no_mangle)]
-pub extern "C" fn sys_my_print_dbg() -> i32 {
-	warn!("__sys_my_print_dbg called!");
+pub extern "C" fn sys_printdbg() -> i32 {
+	warn!("__sys_printdbg called!");
 	0
 }
 
