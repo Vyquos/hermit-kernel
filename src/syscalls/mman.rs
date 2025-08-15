@@ -4,7 +4,7 @@ use align_address::Align;
 use free_list::{PageLayout, PageRange};
 use memory_addresses::{PhysAddr, VirtAddr};
 
-use crate::arch;
+use crate::{arch, mm};
 #[cfg(target_arch = "x86_64")]
 use crate::arch::mm::paging::PageTableEntryFlagsExt;
 use crate::arch::mm::paging::{BasePageSize, PageSize, PageTableEntryFlags};
@@ -31,6 +31,27 @@ bitflags! {
 #[unsafe(no_mangle)]
 pub extern "C" fn sys_printdbg() -> i32 {
 	warn!("__sys_printdbg called!");
+	0
+}
+
+/// Logs the current physical and virtual free list
+#[hermit_macro::system]
+#[unsafe(no_mangle)]
+pub extern "C" fn sys_print_freelist() -> i32 {
+	mm::print_information();
+	0
+}
+
+/// Marks an aligned virtual memory region as used, returning the address of
+/// that region.
+#[hermit_macro::system]
+#[unsafe(no_mangle)]
+pub extern "C" fn sys_valloc(size: usize, align: usize, ret: &mut *mut u8) -> i32 {
+	let size = size.align_up(align);
+	let layout = PageLayout::from_size_align(size, align).unwrap();
+	let page_range = KERNEL_FREE_LIST.lock().allocate(layout).unwrap();
+	let virtual_address = VirtAddr::from(page_range.start());
+	*ret = virtual_address.as_mut_ptr();
 	0
 }
 
