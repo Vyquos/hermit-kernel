@@ -46,12 +46,14 @@ pub extern "C" fn sys_print_freelist() -> i32 {
 /// that region.
 #[hermit_macro::system]
 #[unsafe(no_mangle)]
-pub extern "C" fn sys_valloc(size: usize, align: usize, ret: &mut *mut u8) -> i32 {
+pub extern "C" fn sys_valloc(size: usize, align: usize, ret: *mut *mut u8) -> i32 {
 	let size = size.align_up(align);
 	let layout = PageLayout::from_size_align(size, align).unwrap();
 	let page_range = KERNEL_FREE_LIST.lock().allocate(layout).unwrap();
 	let virtual_address = VirtAddr::from(page_range.start());
-	*ret = virtual_address.as_mut_ptr();
+	unsafe {
+		ret.write(virtual_address.as_mut_ptr());
+	}
 	0
 }
 
