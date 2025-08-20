@@ -1,7 +1,7 @@
 use core::ffi::{c_int, c_void};
 
 use align_address::Align;
-use free_list::{PageLayout, PageRange};
+use free_list::{AllocError, PageLayout, PageRange};
 use memory_addresses::{PhysAddr, VirtAddr};
 
 use crate::{arch, mm};
@@ -53,6 +53,55 @@ pub extern "C" fn sys_valloc(size: usize, align: usize, ret: *mut *mut u8) -> i3
 	let virtual_address = VirtAddr::from(page_range.start());
 	unsafe {
 		ret.write(virtual_address.as_mut_ptr());
+	}
+	0
+}
+
+/// Allocate at most `max_count` contiguous frames, each aligned to `align`.
+///
+/// Returns (the aligned window into) the first range that contains at least one
+/// frame with the required alignment.
+pub fn allocate_max(max_size: usize, align: usize) -> Result<PageRange, AllocError> {
+	assert!(max_size > 0);
+	assert!(align > 0);
+	assert_eq!(
+		max_size % align,
+		0,
+		"Max size {max_size:#X} is not a multiple of the given alignment {align:#X}"
+	);
+	assert_eq!(
+		align % BasePageSize::SIZE as usize,
+		0,
+		"Alignment {:#X} is not a multiple of {:#X}",
+		align,
+		BasePageSize::SIZE,
+	);
+
+	Ok(PHYSICAL_FREE_LIST.lock().allocate_with(|range| {
+		let start = range.start().align_up(align);
+		let end = std::cmp::min(start + max_size, range.end().align_down(align));
+		(!(start..end).is_empty()).then_some(PageRange::new(start, end).unwrap())
+	})?)
+}
+
+/// Allocates at most `max_count` frames (each of size `page_size`).
+///
+/// Returns the physical address of the first frame and the number of frames
+/// allocated.
+#[hermit_macro::system]
+#[unsafe(no_mangle)]
+pub extern "C" fn sys_palloc(
+	// FIXME should ret be usize or u64?
+	max_count: usize,
+	page_size: usize,
+	ret: *mut *mut u8,
+	ret_count: *mut usize,
+) -> i32 {
+	assert!(page_size != 0);
+	let frames = allocate_max(max_count * page_size, page_size).unwrap();
+	unsafe {
+		ret.write(frames.start() as *mut u8);
+		ret_count.write(frames.len().get() / page_size);
 	}
 	0
 }
