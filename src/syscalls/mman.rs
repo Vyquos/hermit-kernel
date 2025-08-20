@@ -1,3 +1,4 @@
+use core::cmp;
 use core::ffi::{c_int, c_void};
 
 use align_address::Align;
@@ -79,7 +80,7 @@ pub fn allocate_max(max_size: usize, align: usize) -> Result<PageRange, AllocErr
 
 	Ok(PHYSICAL_FREE_LIST.lock().allocate_with(|range| {
 		let start = range.start().align_up(align);
-		let end = std::cmp::min(start + max_size, range.end().align_down(align));
+		let end = cmp::min(start + max_size, range.end().align_down(align));
 		(!(start..end).is_empty()).then_some(PageRange::new(start, end).unwrap())
 	})?)
 }
