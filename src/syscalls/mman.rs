@@ -8,7 +8,7 @@ use memory_addresses::{PhysAddr, VirtAddr};
 use crate::{arch, mm};
 #[cfg(target_arch = "x86_64")]
 use crate::arch::mm::paging::PageTableEntryFlagsExt;
-use crate::arch::mm::paging::{BasePageSize, PageSize, PageTableEntryFlags};
+use crate::arch::mm::paging::{self, BasePageSize, PageSize, PageTableEntryFlags};
 use crate::mm::physicalmem::PHYSICAL_FREE_LIST;
 use crate::mm::virtualmem::KERNEL_FREE_LIST;
 
@@ -40,6 +40,15 @@ pub extern "C" fn sys_printdbg() -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn sys_print_freelist() -> i32 {
 	mm::print_information();
+	0
+}
+
+#[hermit_macro::system]
+#[unsafe(no_mangle)]
+pub extern "C" fn sys_print_page_tables() -> i32 {
+	unsafe {
+		paging::log_page_tables();
+	}
 	0
 }
 
