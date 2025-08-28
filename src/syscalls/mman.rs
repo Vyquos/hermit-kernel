@@ -90,7 +90,7 @@ pub fn allocate_max(max_size: usize, align: usize) -> Result<PageRange, AllocErr
 	Ok(PHYSICAL_FREE_LIST.lock().allocate_with(|range| {
 		let start = range.start().align_up(align);
 		let end = cmp::min(start + max_size, range.end().align_down(align));
-		(!(start..end).is_empty()).then_some(PageRange::new(start, end).unwrap())
+		PageRange::new(start, end).ok()
 	})?)
 }
 
