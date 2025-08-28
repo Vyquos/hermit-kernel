@@ -52,17 +52,19 @@ pub extern "C" fn sys_print_page_tables() -> i32 {
 	0
 }
 
-/// Marks an aligned virtual memory region as used, returning the address of
-/// that region.
+/// Marks an aligned virtual memory region as used.
+///
+/// Returns the VirtAddr of the allocated region.
 #[hermit_macro::system]
 #[unsafe(no_mangle)]
-pub extern "C" fn sys_valloc(size: usize, align: usize, ret: *mut *mut u8) -> i32 {
+pub extern "C" fn sys_valloc(size: usize, align: usize, ret: *mut u64) -> i32 {
+	assert!(!ret.is_null());
 	let size = size.align_up(align);
 	let layout = PageLayout::from_size_align(size, align).unwrap();
 	let page_range = KERNEL_FREE_LIST.lock().allocate(layout).unwrap();
 	let virtual_address = VirtAddr::from(page_range.start());
 	unsafe {
-		ret.write(virtual_address.as_mut_ptr());
+		ret.write(virtual_address.as_u64());
 	}
 	0
 }
@@ -104,13 +106,15 @@ pub extern "C" fn sys_palloc(
 	// FIXME should ret be usize or u64?
 	max_count: usize,
 	page_size: usize,
-	ret: *mut *mut u8,
+	ret: *mut u64,
 	ret_count: *mut usize,
 ) -> i32 {
 	assert!(page_size != 0);
+	assert!(!ret.is_null());
 	let frames = allocate_max(max_count * page_size, page_size).unwrap();
+	let start = PhysAddr::new(frames.start().try_into().unwrap());
 	unsafe {
-		ret.write(frames.start() as *mut u8);
+		ret.write(start.as_u64());
 		ret_count.write(frames.len().get() / page_size);
 	}
 	0
