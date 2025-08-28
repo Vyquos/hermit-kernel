@@ -125,6 +125,42 @@ pub extern "C" fn sys_palloc(
 	0
 }
 
+/// Deallocates the virtual memory at VirtAddr `addr`.
+#[hermit_macro::system]
+#[unsafe(no_mangle)]
+pub extern "C" fn sys_vfree(addr: usize, size: usize) -> i32 {
+	let range = PageRange::from_start_len(addr, size).unwrap();
+	unsafe {
+		KERNEL_FREE_LIST.lock().deallocate(range).unwrap();
+	}
+	0
+}
+
+/// Deallocates the physical memory at PhysAddr `addr`.
+///
+/// hermit::arch::x86_64::mm::physicalmem::deallocate warns that the call may
+/// fail due to an empty node pool if it isn't called from mm::deallocate.
+#[hermit_macro::system]
+#[unsafe(no_mangle)]
+pub extern "C" fn sys_pfree(addr: usize, size: usize) -> i32 {
+	let range = PageRange::from_start_len(addr, size).unwrap();
+	unsafe {
+		PHYSICAL_FREE_LIST.lock().deallocate(range).unwrap();
+	}
+	0
+}
+
+/// Flushes the global tlb buffer.
+///
+/// If the kernel is compiled without the smp feature, this call is a nop.
+#[hermit_macro::system]
+#[unsafe(no_mangle)]
+pub extern "C" fn sys_flush_tlb() -> i32 {
+	#[cfg(feature = "smp")]
+	crate::arch::x86_64::kernel::apic::ipi_tlb_flush();
+	0
+}
+
 /// Creates a new virtual memory mapping of the `size` specified with
 /// protection bits specified in `prot_flags`.
 #[hermit_macro::system(errno)]
