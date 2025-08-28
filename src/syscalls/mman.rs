@@ -98,24 +98,29 @@ pub fn allocate_max(max_size: usize, align: usize) -> Result<PageRange, AllocErr
 
 /// Allocates at most `max_count` frames (each of size `page_size`).
 ///
-/// Returns the physical address of the first frame and the number of frames
-/// allocated.
+/// Returns the PhysAddr of the start and end of the allocated frame range (end
+/// refers to the first frame after the range).
 #[hermit_macro::system]
 #[unsafe(no_mangle)]
 pub extern "C" fn sys_palloc(
 	// FIXME should ret be usize or u64?
 	max_count: usize,
 	page_size: usize,
-	ret: *mut u64,
-	ret_count: *mut usize,
+	ret_start: *mut u64,
+	ret_end: *mut u64,
 ) -> i32 {
-	assert!(page_size != 0);
-	assert!(!ret.is_null());
+	assert!(!ret_start.is_null());
+	assert!(!ret_end.is_null());
 	let frames = allocate_max(max_count * page_size, page_size).unwrap();
 	let start = PhysAddr::new(frames.start().try_into().unwrap());
+	let end = PhysAddr::new(frames.end().try_into().unwrap());
+	println!(
+		"allocated frames {:#x}..{:#x} of size {:#x}",
+		start, end, page_size,
+	);
 	unsafe {
-		ret.write(start.as_u64());
-		ret_count.write(frames.len().get() / page_size);
+		ret_start.write(start.as_u64());
+		ret_end.write(end.as_u64());
 	}
 	0
 }
