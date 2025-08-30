@@ -69,6 +69,23 @@ pub extern "C" fn sys_valloc(size: usize, align: usize, ret: *mut u64) -> i32 {
 	0
 }
 
+/// Marks an aligned physical memory region as used.
+///
+/// Returns the PhysAddr of the allocated region.
+#[hermit_macro::system]
+#[unsafe(no_mangle)]
+pub extern "C" fn sys_palloc(size: usize, align: usize, ret: *mut u64) -> i32 {
+	assert!(!ret.is_null());
+	let size = size.align_up(align);
+	let layout = PageLayout::from_size_align(size, align).unwrap();
+	let frame_range = PHYSICAL_FREE_LIST.lock().allocate(layout).unwrap();
+	let physical_address = PhysAddr::from(frame_range.start());
+	unsafe {
+		ret.write(physical_address.as_u64());
+	}
+	0
+}
+
 /// Allocate at most `max_count` contiguous frames, each aligned to `align`.
 ///
 /// Returns (the aligned window into) the first range that contains at least one
@@ -102,8 +119,7 @@ pub fn allocate_max(max_size: usize, align: usize) -> Result<PageRange, AllocErr
 /// refers to the first frame after the range).
 #[hermit_macro::system]
 #[unsafe(no_mangle)]
-pub extern "C" fn sys_palloc(
-	// FIXME should ret be usize or u64?
+pub extern "C" fn sys_palloc_scattered(
 	max_count: usize,
 	page_size: usize,
 	ret_start: *mut u64,
@@ -115,8 +131,11 @@ pub extern "C" fn sys_palloc(
 	let start = PhysAddr::new(frames.start().try_into().unwrap());
 	let end = PhysAddr::new(frames.end().try_into().unwrap());
 	println!(
-		"allocated frames {:#x}..{:#x} of size {:#x}",
-		start, end, page_size,
+		"allocated frames {:#x}..{:#x} ({} frames of size {:#x})",
+		start,
+		end,
+		frames.len().get() / page_size,
+		page_size,
 	);
 	unsafe {
 		ret_start.write(start.as_u64());
