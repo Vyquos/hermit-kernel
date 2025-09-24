@@ -5,12 +5,12 @@ use align_address::Align;
 use free_list::{AllocError, PageLayout, PageRange};
 use memory_addresses::{PhysAddr, VirtAddr};
 
-use crate::{arch, mm};
 #[cfg(target_arch = "x86_64")]
 use crate::arch::mm::paging::PageTableEntryFlagsExt;
 use crate::arch::mm::paging::{self, BasePageSize, PageSize, PageTableEntryFlags};
 use crate::mm::physicalmem::PHYSICAL_FREE_LIST;
 use crate::mm::virtualmem::KERNEL_FREE_LIST;
+use crate::{arch, mm};
 
 bitflags! {
 	#[repr(transparent)]
@@ -25,14 +25,6 @@ bitflags! {
 		/// Indicates that the memory region should be executable.
 		const Exec = 1 << 2;
 	}
-}
-
-/// Prints a debug message
-#[hermit_macro::system]
-#[unsafe(no_mangle)]
-pub extern "C" fn sys_printdbg() -> i32 {
-	warn!("__sys_printdbg called!");
-	0
 }
 
 /// Logs the current physical and virtual free list
@@ -127,7 +119,7 @@ pub extern "C" fn sys_palloc_scattered(
 ) -> i32 {
 	assert!(!ret_start.is_null());
 	assert!(!ret_end.is_null());
-	let frames = allocate_max(max_count * page_size, page_size).unwrap();
+	let frames = allocate_max(max_count.checked_mul(page_size).unwrap(), page_size).unwrap();
 	let start = PhysAddr::new(frames.start().try_into().unwrap());
 	let end = PhysAddr::new(frames.end().try_into().unwrap());
 	println!(
@@ -157,8 +149,10 @@ pub extern "C" fn sys_vfree(addr: usize, size: usize) -> i32 {
 
 /// Deallocates the physical memory at PhysAddr `addr`.
 ///
-/// hermit::arch::x86_64::mm::physicalmem::deallocate warns that the call may
-/// fail due to an empty node pool if it isn't called from mm::deallocate.
+/// [`physicalmem::deallocate`] warns that the call may fail due to an empty
+/// node pool if it isn't called from `mm::deallocate`.
+///
+/// [`physicalmem::deallocate`]: crate::arch::x86_64::mm::physicalmem::deallocate
 #[hermit_macro::system]
 #[unsafe(no_mangle)]
 pub extern "C" fn sys_pfree(addr: usize, size: usize) -> i32 {
