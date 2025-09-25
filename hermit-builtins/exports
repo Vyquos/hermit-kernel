@@ -38,6 +38,8 @@ fabs
 fabsf
 fdim
 fdimf
+fegetround
+fesetround
 floor
 floorf
 fma
