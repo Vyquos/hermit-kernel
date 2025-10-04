@@ -122,13 +122,6 @@ pub extern "C" fn sys_palloc_scattered(
 	let frames = allocate_max(max_count.checked_mul(page_size).unwrap(), page_size).unwrap();
 	let start = PhysAddr::new(frames.start().try_into().unwrap());
 	let end = PhysAddr::new(frames.end().try_into().unwrap());
-	println!(
-		"allocated frames {:#x}..{:#x} ({} frames of size {:#x})",
-		start,
-		end,
-		frames.len().get() / page_size,
-		page_size,
-	);
 	unsafe {
 		ret_start.write(start.as_u64());
 		ret_end.write(end.as_u64());
