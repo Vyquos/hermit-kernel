@@ -134,12 +134,14 @@ pub(crate) fn init() {
 	let mut map_size;
 	let heap_start_addr;
 
+	const HEAP_PERCENT: usize = if cfg!(feature = "small-heap") { 15 } else { 75 };
+
 	#[cfg(feature = "common-os")]
 	{
 		info!("Using HermitOS as common OS!");
 
-		// we reserve at least 75% of the memory for the user space
-		let reserve: usize = (avail_mem * 75) / 100;
+		// we reserve at least HEAP_PERCENT% of the memory for the user space
+		let reserve: usize = (avail_mem * HEAP_PERCENT) / 100;
 		// 64 MB is enough as kernel heap
 		let reserve = core::cmp::min(reserve, 0x0400_0000);
 
@@ -192,7 +194,8 @@ pub(crate) fn init() {
 		#[cfg(not(feature = "mman"))]
 		let virt_size: usize = (avail_mem - stack_reserve).align_down(LargePageSize::SIZE as usize);
 		#[cfg(feature = "mman")]
-		let virt_size: usize = ((avail_mem * 75) / 100).align_down(LargePageSize::SIZE as usize);
+		let virt_size: usize =
+			((avail_mem * HEAP_PERCENT) / 100).align_down(LargePageSize::SIZE as usize);
 
 		let layout = PageLayout::from_size_align(virt_size, LargePageSize::SIZE as usize).unwrap();
 		let page_range = KERNEL_FREE_LIST.lock().allocate(layout).unwrap();
